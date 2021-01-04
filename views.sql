@@ -77,7 +77,11 @@ CREATE OR REPLACE VIEW power_plant AS
               FROM power_plant_relation;
 
 /* Projets enedis */
-CREATE MATERIALIZED VIEW pdm_project_poteaux AS SELECT osm_id::text, tags->'name' AS name, hstore_to_json(tags) AS tags, geometry FROM osm_power_tower where tags->'operator'='Enedis';
+CREATE MATERIALIZED VIEW pdm_project_poteaux AS 
+  SELECT osm_id::text, tags->'name' AS name, hstore_to_json(tags) AS tags, geometry FROM osm_power_tower where type IN ('pole', 'tower') AND tags->'operator'='Enedis' AND St_geometryType(geometry)='ST_Point';
+CREATE MATERIALIZED VIEW pdm_project_substations AS SELECT osm_id, name, hstore_to_json(tags) AS tags, geometry FROM (
+  SELECT osm_id::text, tags->'name' AS name, tags, geometry FROM osm_power_substation where tags->'operator'='Enedis' AND tags->'substation'='minor_distribution'
+  UNION SELECT osm_id::text, tags->'name' AS name, tags, geometry FROM osm_power_tower where tags->'operator'='Enedis' AND (tags->'substation'='minor_distribution' OR tags->'transformer'='distribution')) data;
 
 /* Dispatch power line query to the appropriate generalised table based on zoom. */
 CREATE OR REPLACE FUNCTION power_lines(zoom INT, search_geom geometry) RETURNS
